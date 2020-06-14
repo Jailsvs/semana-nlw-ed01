@@ -17,7 +17,16 @@ class PointsController {
       .distinct()
       .select('points.*');
 
-    return response.json(points);
+      //SERIALIZAÇÃO
+      //API TRANSFORM
+
+    const serializedPoints = points.map(point => {
+      return { 
+        ...point,
+        image_url: `http://192.168.3.102:3333/uploads/${point.image}`}  
+    })
+      
+    return response.json(serializedPoints);
   }
 
   async show (request: Request, response: Response) {
@@ -29,11 +38,16 @@ class PointsController {
       return response.status(400).json( {message: 'Point not found!'} );
     }
 
+    const serializedPoint = {
+      ...point,
+      image_url: `http://192.168.3.102:3333/uploads/${point.image}`};
+
     const items = await knex('items')
       .join('point_items', 'items.id', '=', 'point_items.item_id')
       .where('point_items.point_id', id).select('items.title');
 
-    return response.json({point,
+
+    return response.json({serializedPoint,
                           items
                           });
   }
@@ -51,8 +65,10 @@ class PointsController {
   
     const trx = await knex.transaction();
 
+    //console.log(request.file.filename);
+
     const point = { 
-      image: 'https://www.google.com/imgres?imgurl=https%3A%2F%2Fa.cdn-hotels.com%2Fgdcs%2Fproduction73%2Fd661%2F377b8a64-f7af-4282-997f-67dd9932ae48.jpg&imgrefurl=https%3A%2F%2Fwww.hotels.com%2Fgo%2Findonesia%2Fbadung-market&tbnid=YAXKRXE5BF_eJM&vet=12ahUKEwiS6fjm8ubpAhVhB7kGHcA1DSwQMyhVegUIARDEAQ..i&docid=-aFX4QC-vgwR8M&w=1600&h=1067&q=market&ved=2ahUKEwiS6fjm8ubpAhVhB7kGHcA1DSwQMyhVegUIARDEAQ',
+      image: request.file.filename,
       name: name, 
       email, 
       whatsapp, 
@@ -65,7 +81,10 @@ class PointsController {
 
     const point_id = insertedIds[0];  
 
-    const pointItems = items.map((item_id: number) => {
+    const pointItems = items
+                        .split(',')
+                        .map((item: string) => Number(item.trim()))
+                        .map((item_id: number) => {
       return {
         item_id,
         point_id: point_id
@@ -77,6 +96,10 @@ class PointsController {
 
     await trx.commit();
     
+    /*const serializedPoint = {
+      ...point,
+      image_url: `http://192.168.3.102:3333/uploads/${point.image}`};*/
+
     return response.json({ 
         id: point_id,
         ...point  //...point todas as info do object
